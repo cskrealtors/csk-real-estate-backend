@@ -43,6 +43,24 @@ export const updateProperty = async (req, res) => {
     const { id } = req.params;
     const updatedData = req.body;
 
+    // 🔔 Notification helper (ADDED)
+    const notifyPropertySold = async (property) => {
+      const receivers = await User.find({
+        role: { $in: ["owner", "admin", "accountant"] },
+      }).select("_id");
+
+      await Promise.all(
+        receivers.map((user) =>
+          createNotification({
+            userId: user._id,
+            title: "Property Sold",
+            message: `Property ${property.propertyName || property._id} has been marked as Sold.`,
+            triggeredBy: req.user._id,
+          })
+        )
+      );
+    };
+
     // 1. Update the Property
     const existingProperty = await Property.findByIdAndUpdate(id, updatedData, {
       new: true,
@@ -50,6 +68,14 @@ export const updateProperty = async (req, res) => {
 
     if (!existingProperty) {
       return res.status(404).json({ message: "Property not found" });
+    }
+
+    // 🔔 Notify on Sold status (ADDED)
+    const propertyStatus =
+      updatedData?.customerInfo?.propertyStatus || "";
+
+    if (propertyStatus === "Sold") {
+      await notifyPropertySold(existingProperty);
     }
 
     // 2. Check if siteIncharge exists in request

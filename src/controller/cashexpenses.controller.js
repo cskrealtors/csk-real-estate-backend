@@ -52,6 +52,22 @@ export const createTransaction = asyncHandler(async (req, res) => {
     createdBy: req.user._id,
   });
 
+  // 🔔 Notify Admin & Accountant about new expense request
+  const receivers = await User.find({
+    role: { $in: ["admin", "accountant"] },
+  }).select("_id");
+
+  await Promise.all(
+    receivers.map((user) =>
+      createNotification({
+        userId: user._id,
+        title: "New Expense Request",
+        message: `A new expense request of ₹${amount} has been submitted and needs approval.`,
+        triggeredBy: req.user._id,
+      })
+    )
+  );
+
   return res
     .status(201)
     .json(

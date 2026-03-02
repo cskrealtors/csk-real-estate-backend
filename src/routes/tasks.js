@@ -80,6 +80,14 @@ router.post("/create", upload.array("attachment"), async (req, res) => {
 
     const result = await db.collection("tasks").insertOne(task);
 
+     // 🔔 Notify assigned user (ADDED)
+    await createNotification({
+      userId: new ObjectId(userId),
+      title: "New Task Assigned",
+      message: `You have been assigned a new task: ${title}.`,
+      triggeredBy: payload._id,
+    });
+
     res.status(201).json({
       success: true,
       task: { ...task, _id: result.insertedId },

@@ -54,6 +54,22 @@ export const createQualityIssue = async (req, res) => {
     newIssue.createdBy = user;
     const savedIssue = await newIssue.save();
 
+    // 🔔 Notify Admin + Site Incharge (ADDED)
+    const receivers = await User.find({
+      role: { $in: ["admin", "site_incharge"] },
+    }).select("_id");
+
+    await Promise.all(
+      receivers.map((u) =>
+        createNotification({
+          userId: u._id,
+          title: "Quality Issue Reported",
+          message: `A new quality issue has been reported: ${title}.`,
+          triggeredBy: req.user._id,
+        })
+      )
+    );
+
     res.status(201).json({
       message: "Quality issue created successfully",
       issue: savedIssue,

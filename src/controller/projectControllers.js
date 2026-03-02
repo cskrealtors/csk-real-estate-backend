@@ -258,6 +258,26 @@ export const updateProject = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Project not found");
   }
 
+  // 🔔 Notify Owner + Admin when project is completed (ADDED)
+  if (updateData.status === "Completed") {
+    const receivers = await User.find({
+      role: { $in: ["owner", "admin"] },
+    }).select("_id");
+
+    await Promise.all(
+      receivers.map((user) =>
+        createNotification({
+          userId: user._id,
+          title: "Project Completed",
+          message: `Project ${
+            updatedProject.name || updatedProject._id
+          } has been marked as Completed.`,
+          triggeredBy: req.user._id,
+        })
+      )
+    );
+  }
+
   return res
     .status(200)
     .json(new ApiResponse(200, updatedProject, "Project updated successfully"));
@@ -651,6 +671,16 @@ export const updateTaskByIdForContractor = async (req, res) => {
     project.updatedBy = req.user._id;
     await project.save();
 
+    // 🔔 Notify Site Incharge when contractor submits task (ADDED)
+    if (shouldSubmit && project.siteIncharge) {
+      await createNotification({
+        userId: project.siteIncharge,
+        title: "Task Submitted",
+        message: `A contractor has submitted progress for a construction task.`,
+        triggeredBy: req.user._id,
+      });
+    }
+
     return res.status(200).json({ success: true });
   } catch (error) {
     console.error("Error updating task:", error);
@@ -952,6 +982,14 @@ export const assignTaskToContractor = async (req, res) => {
     issue.contractor = contractor._id;
     issue.updatedBy = req.user._id;
     await issue.save();
+
+    // 🔔 Notify Contractor (ADDED)
+    await createNotification({
+      userId: contractor._id,
+      title: "New Construction Task Assigned",
+      message: `You have been assigned a new task: ${title}.`,
+      triggeredBy: req.user._id,
+    });
 
     return res.status(200).json({
       message: "Task assigned successfully",

@@ -34,6 +34,16 @@ export const updateExpenseStatusByOwner = async (req, res) => {
       return res.status(404).json({ message: "Expense not found" });
     }
 
+    // 🔔 Notify submitter when expense approved/rejected
+    if (["Approved", "Rejected"].includes(status)) {
+      await createNotification({
+        userId: updatedExpense.createdBy, // <-- submitter
+        title: "Expense Status Updated",
+        message: `Your expense request has been ${status}.`,
+        triggeredBy: req.user._id,
+      });
+    }
+
     res.status(200).json(updatedExpense);
   } catch (error) {
     console.error("Error updating expense:", error);

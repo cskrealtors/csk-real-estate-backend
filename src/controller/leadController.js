@@ -19,7 +19,7 @@ export const saveLead = asyncHandler(async (req, res) => {
   const savedLead = await newLead.save();
 
   // 🔔 Notify Sales Managers about new lead
-  const managers = await User.find({ role: "sales_manager", isDeleted: false });
+  const managers = await User.find({ role: "sales_manager" });
   for (const manager of managers) {
     await createNotification({
       userId: manager._id,
